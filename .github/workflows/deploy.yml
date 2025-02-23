@@ -21,10 +21,10 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-      - name: Copy Project Files
+      - name: Copy Project Files (Excluding project_files to prevent recursive copy)
         run: |
           mkdir -p project_files
-          cp -r * project_files/
+          rsync -av --exclude='project_files' ./ project_files/
 
       - name: Commit and Push Changes
         env:
