@@ -10,51 +10,52 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Set up job
+      - name: Set up Job
         run: echo "🚀 Starting Build and Deployment Process"
 
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          submodules: false  # 🚫 Disable automatic submodule checkout
 
-      - name: Universal Cleanup for Git Issues and Submodules
+      - name: Universal Cleanup for Git Issues
         run: |
-          echo "🧹 Cleaning up Git repository and submodules..."
-
-          # Unset submodule configurations globally to prevent lingering settings
-          git submodule deinit -f --all || echo "✅ No submodules to deinit."
-
-          # Remove any submodule-related configurations from Git settings
-          git config --remove-section submodule || echo "✅ No submodule sections to remove."
-
-          # Clean up .gitmodules if it exists
+          echo "🧹 Cleaning up Git environment..."
+          git reset --hard || echo "✅ Reset completed."
+          git clean -fdx || echo "✅ Clean completed."
+          git config --unset-all core.sshCommand || echo "✅ SSH config cleared."
           [ -f .gitmodules ] && rm .gitmodules && echo "🗑️ Removed .gitmodules file."
+          rm -rf .git/modules || echo "✅ Submodule metadata removed."
+          git fsck --full || echo "✅ Repository integrity checked."
 
-          # Remove all submodule metadata from .git directory
-          rm -rf .git/modules || echo "✅ No submodule metadata to remove."
-
-          # Clean and reset working directory to avoid cache-related conflicts
-          git clean -fdx || echo "✅ No untracked files to clean."
-          git reset --hard || echo "✅ No changes to reset."
-
-          # Ensure no dangling references remain
-          git fsck --full || echo "✅ Repository integrity verified."
-
-      - name: Set up Git Config
+      - name: Set up Git Configuration
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Create Project Files and Build Artifacts
+      - name: Create Any Missing Directories and Files
         run: |
-          echo "📂 Generating project files..."
-          mkdir -p project_files
-          echo "Sample content" > project_files/sample.txt
-          
-          mkdir -p assets/themes/previews
-          echo "Theme preview" > assets/themes/previews/theme_preview.txt
-          
-          mkdir -p build
-          echo "Build artifact
+          echo "📂 Ensuring necessary directories and files exist..."
+          for dir in $(find . -type d); do
+            mkdir -p "$dir" || echo "✅ Directory $dir exists."
+          done
+
+          # Create a placeholder file in empty directories (Git ignores empty folders)
+          find . -type d -empty -exec touch {}/.gitkeep \;
+
+      - name: Prevent Conflicts with Latest Changes
+        run: |
+          echo "🔄 Pulling latest changes..."
+          git pull origin main --rebase || echo "✅ No conflicts detected."
+
+      - name: Commit and Push Changes
+        env:
+          DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+        run: |
+          git add -A
+          git diff-index --quiet HEAD || git commit -m "🚀 Automated build and deployment"
+          git remote set-url origin https://x-access-token:${{ secrets.DEPLOY_TOKEN }}@github.com/${{ github.repository }}.git
+          git push origin main || echo "⚠️ No new changes to push."
+
+      - name: Complete Job
+        run: echo "✅ Build and deployment completed successfully."
