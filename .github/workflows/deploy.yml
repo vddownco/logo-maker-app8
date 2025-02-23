@@ -1,4 +1,4 @@
-name: Diagnose IONOS Deployment
+name: Deploy to IONOS Server
 
 on:
   push:
@@ -7,44 +7,23 @@ on:
 
 permissions:
   contents: write
-  actions: write
 
 jobs:
-  diagnose:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Clear Cache (to avoid old versions)
-        run: |
-          echo "Clearing cached actions..."
-          rm -rf ~/.cache
-
-      - name: Install SSH Client
-        run: sudo apt-get install -y openssh-client sshpass
-
-      - name: Test SFTP Connection
-        env:
-          FTP_HOST: ${{ secrets.FTP_HOST }}
-          FTP_PORT: ${{ secrets.FTP_PORT }}
-          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
-          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
-        run: |
-          echo "Testing SFTP connection..."
-          sshpass -p "$FTP_PASSWORD" sftp -o StrictHostKeyChecking=no -P "$FTP_PORT" "$FTP_USERNAME@$FTP_HOST" <<EOF
-          ls -la
-          EOF
-
-      - name: Save Diagnostics Log
-        run: |
-          echo "==== Diagnostics Log ====" > deploy_log.txt
-          date >> deploy_log.txt
-          echo "SFTP connection tested." >> deploy_log.txt
-
-      - name: Upload Diagnostics Log
-        uses: actions/upload-artifact@v4  # ✅ Corrected and up-to-date version
+      - name: Upload Files to IONOS via SCP
+        uses: appleboy/scp-action@master
         with:
-          name: deploy-diagnostics-log
-          path: deploy_log.txt
+          host: ${{ secrets.FTP_HOST }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          port: ${{ secrets.FTP_PORT }}
+          source: "."      # Upload everything from the repository
+          target: "/inaya" # Make sure this directory exists in IONOS
+          strip_components: 1 # Prevent nested folder uploads
+          overwrite: true     # Ensure files get updated
