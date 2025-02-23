@@ -1,4 +1,4 @@
-name: Build and Deploy
+name: Full Auto Build, Generate & Deploy
 
 on:
   push:
@@ -6,37 +6,41 @@ on:
       - main
   workflow_dispatch:
   schedule:
-    - cron: '0 * * * *'  # Runs hourly for continuous automation
+    - cron: '0 * * * *'  # Runs every hour
 
 jobs:
-  build_and_deploy:
+  build_generate_deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
           token: ${{ secrets.DEPLOY_TOKEN }}
-          submodules: false  # 🚫 Prevents submodule issues
+          fetch-depth: 0
 
-      - name: Pull Latest Changes to Prevent Conflicts
+      - name: Setup Git Config
         run: |
-          git pull origin main --rebase || echo "No new changes to pull"
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Build Project Files
+      - name: Pull Latest Code to Avoid Conflicts
+        run: |
+          git pull origin main --rebase || true
+
+      - name: Generate Project Files Automatically
         run: |
           mkdir -p project_files
-          echo "✅ Project built successfully on $(date)" > project_files/BUILD_LOG.txt
-          echo "Test file generated." > project_files/test_file.txt
+          echo "Generated file at $(date)" > project_files/GENERATED_FILE.txt
+          echo "Project auto-build successful." > project_files/BUILD_LOG.txt
 
-      - name: Commit and Push Project Files
+      - name: Commit and Push Generated Files
         env:
           DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
         run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
           git add project_files
-          git commit -m "🚀 Automated build & file upload" || echo "No changes to commit"
-          git pull origin main --rebase
-          git push https://x-access-token:${{ secrets.DEPLOY_TOKEN }}@github.com/${{ github.repository }}.git main --force
+          git commit -m "🤖 Auto-generated & uploaded project files" || echo "No changes to commit."
+          git pull origin main --rebase || true
+          git push https://x-access-token:${{ secrets.DEPLOY_TOKEN }}@github.com/${{ github.repository }}.git main
+
+      - name: Confirm Deployment
+        run: echo "✅ Files generated, committed, and pushed to GitHub!"
