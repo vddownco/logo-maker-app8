@@ -1,37 +1,39 @@
-name: Deploy to GitHub
+name: Deploy and Build Automation
 
 on:
   push:
     branches:
       - main
-  workflow_dispatch:
 
 jobs:
-  deploy:
+  build_and_deploy:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.DEPLOY_TOKEN }}
 
       - name: Set up Git
         run: |
           git config --global user.name "github-actions[bot]"
-          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Copy Project Files (Excluding project_files to prevent recursive copy)
+      - name: Create Project Files and Build Artifacts
         run: |
           mkdir -p project_files
-          rsync -av --exclude='project_files' ./ project_files/
+          mkdir -p build
+          mkdir -p assets/themes/previews
+
+          # Generate project files
+          echo "Generating files..."
+          echo "Project documentation" > project_files/README.md
+          echo "App Build Artifact" > build/app_build.txt
+          echo "Theme Preview" > assets/themes/previews/theme_preview.txt
 
       - name: Commit and Push Changes
         env:
           DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
         run: |
-          git remote set-url origin https://x-access-token:${DEPLOY_TOKEN}@github.com/${{ github.repository }}
           git add .
-          git commit -m "🚀 Automated commit of project files" || echo "No changes to commit"
-          git pull origin main --rebase
-          git push origin main --force
+          git commit -m "Automated build and deployment" || echo "No changes to commit"
+          git push https://x-access-token:${{ secrets.DEPLOY_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
