@@ -13,15 +13,19 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Upload Files to IONOS via SFTP
-        uses: mohsen1/sftp-deploy@v2.1.0
-        with:
-          server: ${{ secrets.FTP_HOST }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: ${{ secrets.FTP_PORT }}
-          local-dir: './'
-          remote-dir: '/inaya'
-          exclude: |
-            .git*
-            node_modules
+      - name: Upload files via SFTP
+        env:
+          HOST: ${{ secrets.FTP_HOST }}
+          USERNAME: ${{ secrets.FTP_USERNAME }}
+          PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          PORT: ${{ secrets.FTP_PORT }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lftp
+
+          echo "Uploading files to IONOS server via SFTP..."
+
+          lftp -u "$USERNAME","$PASSWORD" -p "$PORT" sftp://$HOST << EOF
+          mirror -R ./ /inaya
+          bye
+          EOF
