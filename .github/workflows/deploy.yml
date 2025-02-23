@@ -1,14 +1,15 @@
 name: Diagnose IONOS Deployment
 
 on:
-  workflow_dispatch:  # Run manually from GitHub Actions tab
+  workflow_dispatch:  # Allows manual trigger from GitHub Actions tab
 
 jobs:
   diagnose:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install required packages
         run: sudo apt-get update && sudo apt-get install -y sshpass
@@ -16,30 +17,30 @@ jobs:
       - name: Test SSH connection
         run: |
           echo "Testing SSH connection..." | tee deploy_log.txt
-          sshpass -p "${{ secrets.FTP_PASSWORD }}" ssh -o StrictHostKeyChecking=no -p ${{ secrets.FTP_PORT }} ${{ secrets.FTP_USERNAME }}@${{ secrets.FTP_HOST }} "echo '✅ SSH connection successful'" | tee -a deploy_log.txt || echo "❌ SSH connection failed" | tee -a deploy_log.txt
+          if sshpass -p "${{ secrets.FTP_PASSWORD }}" ssh -o StrictHostKeyChecking=no -p ${{ secrets.FTP_PORT }} ${{ secrets.FTP_USERNAME }}@${{ secrets.FTP_HOST }} "echo '✅ SSH connection successful'"; then
+            echo "✅ SSH connection successful" | tee -a deploy_log.txt
+          else
+            echo "❌ SSH connection failed" | tee -a deploy_log.txt
+          fi
 
       - name: Check remote directory and permissions
         run: |
+          echo "Checking /inaya directory..." | tee -a deploy_log.txt
           sshpass -p "${{ secrets.FTP_PASSWORD }}" ssh -o StrictHostKeyChecking=no -p ${{ secrets.FTP_PORT }} ${{ secrets.FTP_USERNAME }}@${{ secrets.FTP_HOST }} "\
-            echo 'Checking directory permissions...' && \
-            ls -ld /inaya && \
-            echo '✅ Directory check complete' || echo '❌ Directory /inaya does not exist or is inaccessible'" | tee -a deploy_log.txt
+            ls -ld /inaya || echo '❌ Directory /inaya does not exist or is inaccessible'" | tee -a deploy_log.txt
 
       - name: Attempt to upload test file
         run: |
           echo "Test file for deployment" > test_upload.txt
           echo "Uploading test file..." | tee -a deploy_log.txt
-          sshpass -p "${{ secrets.FTP_PASSWORD }}" scp -P ${{ secrets.FTP_PORT }} -o StrictHostKeyChecking=no test_upload.txt ${{ secrets.FTP_USERNAME }}@${{ secrets.FTP_HOST }}:/inaya 2>&1 | tee -a deploy_log.txt
+          if sshpass -p "${{ secrets.FTP_PASSWORD }}" scp -P ${{ secrets.FTP_PORT }} -o StrictHostKeyChecking=no test_upload.txt ${{ secrets.FTP_USERNAME }}@${{ secrets.FTP_HOST }}:/inaya; then
+            echo "✅ File uploaded successfully" | tee -a deploy_log.txt
+          else
+            echo "❌ File upload failed" | tee -a deploy_log.txt
+          fi
 
       - name: Verify file upload
         run: |
+          echo "Verifying uploaded file..." | tee -a deploy_log.txt
           sshpass -p "${{ secrets.FTP_PASSWORD }}" ssh -o StrictHostKeyChecking=no -p ${{ secrets.FTP_PORT }} ${{ secrets.FTP_USERNAME }}@${{ secrets.FTP_HOST }} "\
-            echo 'Verifying uploaded file...' && \
-            ls -l /inaya/test_upload.txt && \
-            echo '✅ File upload verified' || echo '❌ File upload failed'" | tee -a deploy_log.txt
-
-      - name: Upload deploy_log.txt to GitHub Artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: deploy-diagnostics-log
-          path: deploy_log.txt
+            ls -l /inaya/test_upload.txt || echo '❌ File verification
