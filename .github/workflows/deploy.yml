@@ -1,28 +1,45 @@
-name: Deploy to IONOS Server
+name: Diagnose IONOS Deployment
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
+  workflow_dispatch:  # Run manually from GitHub Actions tab
 
 jobs:
-  deploy:
+  diagnose:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Upload files to IONOS via SFTP
-        uses: appleboy/scp-action@v0.1.3
+      - name: Install required packages
+        run: sudo apt-get update && sudo apt-get install -y sshpass
+
+      - name: Test SSH connection
+        run: |
+          echo "Testing SSH connection..." | tee deploy_log.txt
+          sshpass -p "${{ secrets.FTP_PASSWORD }}" ssh -o StrictHostKeyChecking=no -p ${{ secrets.FTP_PORT }} ${{ secrets.FTP_USERNAME }}@${{ secrets.FTP_HOST }} "echo '✅ SSH connection successful'" | tee -a deploy_log.txt || echo "❌ SSH connection failed" | tee -a deploy_log.txt
+
+      - name: Check remote directory and permissions
+        run: |
+          sshpass -p "${{ secrets.FTP_PASSWORD }}" ssh -o StrictHostKeyChecking=no -p ${{ secrets.FTP_PORT }} ${{ secrets.FTP_USERNAME }}@${{ secrets.FTP_HOST }} "\
+            echo 'Checking directory permissions...' && \
+            ls -ld /inaya && \
+            echo '✅ Directory check complete' || echo '❌ Directory /inaya does not exist or is inaccessible'" | tee -a deploy_log.txt
+
+      - name: Attempt to upload test file
+        run: |
+          echo "Test file for deployment" > test_upload.txt
+          echo "Uploading test file..." | tee -a deploy_log.txt
+          sshpass -p "${{ secrets.FTP_PASSWORD }}" scp -P ${{ secrets.FTP_PORT }} -o StrictHostKeyChecking=no test_upload.txt ${{ secrets.FTP_USERNAME }}@${{ secrets.FTP_HOST }}:/inaya 2>&1 | tee -a deploy_log.txt
+
+      - name: Verify file upload
+        run: |
+          sshpass -p "${{ secrets.FTP_PASSWORD }}" ssh -o StrictHostKeyChecking=no -p ${{ secrets.FTP_PORT }} ${{ secrets.FTP_USERNAME }}@${{ secrets.FTP_HOST }} "\
+            echo 'Verifying uploaded file...' && \
+            ls -l /inaya/test_upload.txt && \
+            echo '✅ File upload verified' || echo '❌ File upload failed'" | tee -a deploy_log.txt
+
+      - name: Upload deploy_log.txt to GitHub Artifacts
+        uses: actions/upload-artifact@v3
         with:
-          host: ${{ secrets.FTP_HOST }}
-          username: ${{ secrets.FTP_USERNAME }}
-          password: ${{ secrets.FTP_PASSWORD }}
-          port: ${{ secrets.FTP_PORT }}
-          source: "."               # Uploads all files in the repository root
-          target: "/inaya"          # Remote directory (adjust if needed)
-          overwrite: true          # Overwrites existing files on the server
-          strip_components: 1      # Prevents uploading with extra folder layers
-          debug: true              # Enables detailed logs
-          passphrase: ""           # Empty unless using SSH keys (not required here)
+          name: deploy-diagnostics-log
+          path: deploy_log.txt
