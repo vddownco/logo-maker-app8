@@ -1,4 +1,4 @@
-name: Deploy to IONOS Server
+name: Deploy to IONOS Server and Update GitHub
 
 on:
   push:
@@ -8,12 +8,16 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Upload files via SFTP
+      - name: Set up Git Configuration
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Upload files via SFTP to IONOS
         env:
           HOST: ${{ secrets.FTP_HOST }}
           USERNAME: ${{ secrets.FTP_USERNAME }}
@@ -22,12 +26,18 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y lftp
-
           echo "Uploading files to IONOS server via SFTP..."
-
-          lftp -u "$USERNAME","$PASSWORD" -p "$PORT" sftp://$HOST << EOF
+          lftp -u "$USERNAME","$PASSWORD" -p "$PORT" sftp://$HOST <<EOF
           set sftp:auto-confirm yes
           set ssl:verify-certificate no
           mirror -R ./ /inaya
           bye
           EOF
+
+      - name: Commit and Push Changes to GitHub
+        env:
+          TOKEN: ${{ secrets.DEPLOY_TOKEN }}
+        run: |
+          git add .
+          git commit -m "Automated deployment: $(date)" || echo "No changes to commit."
+          git push https://x-access-token:${TOKEN}@github.com/${{ github.repository }} HEAD:main
