@@ -26,6 +26,8 @@ jobs:
           echo "Uploading files to IONOS server via SFTP..."
 
           lftp -u "$USERNAME","$PASSWORD" -p "$PORT" sftp://$HOST << EOF
+          set sftp:auto-confirm yes
+          set ssl:verify-certificate no
           mirror -R ./ /inaya
           bye
           EOF
