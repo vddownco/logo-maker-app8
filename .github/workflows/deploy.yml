@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Ensures full history is fetched to prevent conflicts
 
       - name: Set up Git
         run: |
@@ -20,15 +22,13 @@ jobs:
 
       - name: Create Project Files and Build Artifacts
         run: |
-          mkdir -p project_files
-          mkdir -p build
-          mkdir -p assets/themes/previews
-
-          # Generate project files
-          echo "Generating files..."
+          mkdir -p project_files build assets/themes/previews
           echo "Project documentation" > project_files/README.md
           echo "App Build Artifact" > build/app_build.txt
           echo "Theme Preview" > assets/themes/previews/theme_preview.txt
+
+      - name: Pull Latest Changes to Prevent Conflicts
+        run: git pull origin main --rebase
 
       - name: Commit and Push Changes
         env:
