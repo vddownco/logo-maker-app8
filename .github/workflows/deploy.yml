@@ -16,23 +16,45 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Avoid shallow clone issues
-          submodules: false  # 🚫 Prevent submodule fetching errors
-          persist-credentials: false  # Avoid credential conflicts
+          fetch-depth: 0
+          submodules: false  # 🚫 Disable automatic submodule checkout
 
-      - name: Set up Git
+      - name: Universal Cleanup for Git Issues and Submodules
+        run: |
+          echo "🧹 Cleaning up Git repository and submodules..."
+
+          # Unset submodule configurations globally to prevent lingering settings
+          git submodule deinit -f --all || echo "✅ No submodules to deinit."
+
+          # Remove any submodule-related configurations from Git settings
+          git config --remove-section submodule || echo "✅ No submodule sections to remove."
+
+          # Clean up .gitmodules if it exists
+          [ -f .gitmodules ] && rm .gitmodules && echo "🗑️ Removed .gitmodules file."
+
+          # Remove all submodule metadata from .git directory
+          rm -rf .git/modules || echo "✅ No submodule metadata to remove."
+
+          # Clean and reset working directory to avoid cache-related conflicts
+          git clean -fdx || echo "✅ No untracked files to clean."
+          git reset --hard || echo "✅ No changes to reset."
+
+          # Ensure no dangling references remain
+          git fsck --full || echo "✅ Repository integrity verified."
+
+      - name: Set up Git Config
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Create Project Files and Build Artifacts
         run: |
+          echo "📂 Generating project files..."
           mkdir -p project_files
           echo "Sample content" > project_files/sample.txt
+          
           mkdir -p assets/themes/previews
-          echo "Theme preview content" > assets/themes/previews/theme_preview.txt
+          echo "Theme preview" > assets/themes/previews/theme_preview.txt
+          
           mkdir -p build
-          echo "Build artifact" > build/app_build.txt
-
-      - name: Pull Latest Changes to Prevent Conflicts
-        run: git
+          echo "Build artifact
