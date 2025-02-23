@@ -1,61 +1,42 @@
-name: Build and Deploy Automation
+name: Build and Deploy
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
+  schedule:
+    - cron: '0 * * * *'  # Runs every hour to ensure automation continues
 
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Set up Job
-        run: echo "🚀 Starting Build and Deployment Process"
-
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.DEPLOY_TOKEN }}
+          submodules: recursive
 
-      - name: Universal Cleanup for Git Issues
+      - name: Pull Latest Changes to Prevent Conflicts
         run: |
-          echo "🧹 Cleaning up Git environment..."
-          git reset --hard || echo "✅ Reset completed."
-          git clean -fdx || echo "✅ Clean completed."
-          git config --unset-all core.sshCommand || echo "✅ SSH config cleared."
-          [ -f .gitmodules ] && rm .gitmodules && echo "🗑️ Removed .gitmodules file."
-          rm -rf .git/modules || echo "✅ Submodule metadata removed."
-          git fsck --full || echo "✅ Repository integrity checked."
+          git pull origin main --rebase || echo "No new changes to pull"
 
-      - name: Set up Git Configuration
+      - name: Build Project Files
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          mkdir -p project_files
+          echo "✅ Project built successfully on $(date)" > project_files/BUILD_LOG.txt
+          echo "This is a test file generated during build." > project_files/test_file.txt
 
-      - name: Create Any Missing Directories and Files
-        run: |
-          echo "📂 Ensuring necessary directories and files exist..."
-          for dir in $(find . -type d); do
-            mkdir -p "$dir" || echo "✅ Directory $dir exists."
-          done
-
-          # Create a placeholder file in empty directories (Git ignores empty folders)
-          find . -type d -empty -exec touch {}/.gitkeep \;
-
-      - name: Prevent Conflicts with Latest Changes
-        run: |
-          echo "🔄 Pulling latest changes..."
-          git pull origin main --rebase || echo "✅ No conflicts detected."
-
-      - name: Commit and Push Changes
+      - name: Commit and Push Project Files
         env:
           DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}
         run: |
-          git add -A
-          git diff-index --quiet HEAD || git commit -m "🚀 Automated build and deployment"
-          git remote set-url origin https://x-access-token:${{ secrets.DEPLOY_TOKEN }}@github.com/${{ github.repository }}.git
-          git push origin main || echo "⚠️ No new changes to push."
-
-      - name: Complete Job
-        run: echo "✅ Build and deployment completed successfully."
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add project_files
+          git commit -m "🚀 Automated build & project file upload" || echo "No changes to commit"
+          git pull origin main --rebase
+          git push https://x-access-token:${{ secrets.DEPLOY_TOKEN }}@github.com/${{ github.repository }}.git main --force
