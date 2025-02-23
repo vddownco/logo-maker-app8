@@ -1,4 +1,4 @@
-name: Deploy and Build Automation
+name: Build and Deploy Automation
 
 on:
   push:
@@ -10,10 +10,14 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Set up job
+        run: echo "Starting Build and Deployment Process"
+
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Ensures full history is fetched to prevent conflicts
+          fetch-depth: 0  # Prevents shallow clone issues
+          persist-credentials: false  # Avoids credential cleanup conflicts
 
       - name: Set up Git
         run: |
@@ -22,13 +26,15 @@ jobs:
 
       - name: Create Project Files and Build Artifacts
         run: |
-          mkdir -p project_files build assets/themes/previews
-          echo "Project documentation" > project_files/README.md
-          echo "App Build Artifact" > build/app_build.txt
-          echo "Theme Preview" > assets/themes/previews/theme_preview.txt
+          mkdir -p project_files
+          echo "Sample file content" > project_files/sample.txt
+          mkdir -p assets/themes/previews
+          echo "Theme preview content" > assets/themes/previews/theme_preview.txt
+          mkdir -p build
+          echo "Build artifact content" > build/app_build.txt
 
       - name: Pull Latest Changes to Prevent Conflicts
-        run: git pull origin main --rebase
+        run: git pull origin main --rebase || echo "No changes to rebase"
 
       - name: Commit and Push Changes
         env:
@@ -36,4 +42,11 @@ jobs:
         run: |
           git add .
           git commit -m "Automated build and deployment" || echo "No changes to commit"
-          git push https://x-access-token:${{ secrets.DEPLOY_TOKEN }}@github.com/${{ github.repository }}.git HEAD:main
+          git remote set-url origin https://x-access-token:${{ secrets.DEPLOY_TOKEN }}@github.com/${{ github.repository }}.git
+          git push origin main
+
+      - name: Post Checkout Repository
+        run: echo "Post checkout steps completed successfully"
+
+      - name: Complete job
+        run: echo "✅ Build and deployment process completed."
