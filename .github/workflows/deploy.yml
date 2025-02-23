@@ -12,14 +12,15 @@ permissions:
 jobs:
   diagnose:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
+      - name: Clear Cache (to avoid old versions)
+        run: |
+          echo "Clearing cached actions..."
+          rm -rf ~/.cache
 
       - name: Install SSH Client
         run: sudo apt-get install -y openssh-client sshpass
@@ -40,10 +41,10 @@ jobs:
         run: |
           echo "==== Diagnostics Log ====" > deploy_log.txt
           date >> deploy_log.txt
-          echo "End of log." >> deploy_log.txt
+          echo "SFTP connection tested." >> deploy_log.txt
 
-      - name: Upload Diagnostics Log to GitHub Artifacts
-        uses: actions/upload-artifact@v4  # ✅ Updated version
+      - name: Upload Diagnostics Log
+        uses: actions/upload-artifact@v4  # ✅ Corrected and up-to-date version
         with:
           name: deploy-diagnostics-log
           path: deploy_log.txt
