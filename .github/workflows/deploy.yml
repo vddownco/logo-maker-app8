@@ -23,3 +23,5 @@ jobs:
           port: ${{ secrets.FTP_PORT }}
           source: "."
           target: "/inaya"
+          passive: true
+          debug: true
