@@ -6,7 +6,7 @@ on:
       - main
   workflow_dispatch:
   schedule:
-    - cron: '0 * * * *'  # Runs every hour
+    - cron: '*/15 * * * *'  # Runs every hour
 
 jobs:
   build_generate_deploy:
